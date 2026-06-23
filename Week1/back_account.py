@@ -1,3 +1,18 @@
+class BankError(Exception):
+    """Custom exception for bank account errors."""
+    pass
+
+class InsufficientFundsError(BankError):
+    def __init__(self, amount:float, balance:float):
+        self.amount= amount
+        self.balance =  balance
+        super().__init__(f"Cannot withdraw ${amount:.2f} from account with balance ${balance:.2f}")
+
+class MinimumBalanceError(BankError):
+    def __init__(self, minimum:float):
+        self.minimum = minimum
+        super().__init__(f"Account must maintain a minimum balance of ${minimum:.2f}")
+
 class BankAccount:
     interest_rate = 0.03
 
@@ -29,10 +44,11 @@ class BankAccount:
         BankAccount.validate_amount(amount)  # validation before anything
         self._balance += amount
         self.transactions.append(f"+${amount:.2f}")
+        
     def withdraw(self, amount: float) -> None:
         BankAccount.validate_amount(amount)  # validation before anything
         if amount > self._balance:
-            raise ValueError("Insufficient funds")
+            raise InsufficientFundsError(amount, self._balance)
         self._balance -= amount
         self.transactions.append(f"-${amount:.2f}")
 
@@ -41,7 +57,32 @@ class BankAccount:
     
     def __repr__(self) -> str:
         return f"BankAccount(owner ={self.owner!r}, balance = ${self._balance!r})"
+
+    def __len__(self) -> int:
+        return len(self.transactions)
     
+    def __contains__(self, transaction: str) -> bool:
+        return transaction in self.transactions
+    
+    def __iter__(self):
+        return iter(self.transactions)
+    
+    def __getitem__(self, index:int) -> str:
+        return self.transactions[index]
+
+    def safe_withdraw(self, amount:float) -> bool:
+        try:
+            self.withdraw(amount)
+            print(f"Withdrew ${amount:.2f} successfully.")
+            return True
+        except InsufficientFundsError as e:
+            print(f"Failed to withdraw: {e}")
+            return False
+        except ValueError as e:
+            print(f"Invalid amount: {e}")
+            return False
+        finally:
+            print(f"Balance after attempt: ${self._balance:.2f}")
 
 class SavingsAccount(BankAccount):
     def __init__(self, owner: str, balance: float = 0.0):
@@ -56,7 +97,7 @@ class SavingsAccount(BankAccount):
 
     def withdraw(self, amount: float) -> None:
         if self._balance - amount < 50:
-            raise ValueError("Savings accounts must maintain a $50 minimum")
+            raise MinimumBalanceError(50)
         super().withdraw(amount)  # reuse parent logic
 
     def __str__(self) -> str:
@@ -66,26 +107,27 @@ class SavingsAccount(BankAccount):
             f"interest_earned=${self.interest_earned:.2f})"
         )
     
-    
-acc = BankAccount.open_with_bonus("Vipul")
-print(acc)          # balance starts at $100
+if __name__ == "__main__":
+    # Setup
+    acc = BankAccount.open_with_bonus("Vipul")
+    sav = SavingsAccount("Vipul Savings", 500)
 
-try:
-    acc.balance = -50   # raises ValueError — the setter catches it
-except ValueError as e:
-    print(f"Error: {e}")
+    # Deposits
+    acc.deposit(300)
+    sav.deposit(200)
+    sav.apply_interest()
 
-print(acc.balance)  # still $100, because the setter prevented the change
+    # Iteration
+    print("--- Account transactions ---")
+    for t in acc:
+        print(t)
 
-sav = SavingsAccount("Vipul", 1000)
-sav.apply_interest()
-print(sav)              # shows balance + interest earned
+    print(f"\nTotal transactions: {len(acc)}")
+    print(f"Last transaction: {acc[-1]}")
 
-try:
-    sav.withdraw(981)       # raises ValueError — minimum balance rule (1030 - 981 = 49 < 50)
-except ValueError as e:
-    print(f"Error: {e}")
+    # Error handling
+    acc.safe_withdraw(10000)  # should fail gracefully
 
-sav.withdraw(500)       # works fine (1030 - 500 = 530 > 50)
-print(sav.transactions)
+    print(f"\n{acc}")
+    print(f"{sav}")
 
