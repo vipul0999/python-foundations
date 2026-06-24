@@ -112,7 +112,7 @@ from collections import defaultdict, Counter, deque
 
 def analyze_conversation(
     messages: list[dict[str, str]],
-    window_size: int = 5
+    window_size: int
 ) -> dict[str, Union[list, dict]]:
     """
     Analyze a conversation:
@@ -129,11 +129,14 @@ def analyze_conversation(
         role_counts[msg["role"]] += 1
         by_role[msg["role"]].append(msg["content"])
 
+    print(window)
+
     return {
         "recent_window": list(window),
         "role_counts":   dict(role_counts),
         "by_role":       dict(by_role),
     }
+
 
 conversation = [
     {"role": "user",      "content": "What is Python?"},
@@ -142,8 +145,9 @@ conversation = [
     {"role": "assistant", "content": "A web framework."},
     {"role": "user",      "content": "What is RAG?"},
     {"role": "assistant", "content": "Retrieval Augmented Generation."},
+     {"role": "assistant", "content": "That's correct."},
 ]
 
-result = analyze_conversation(conversation, window_size=4)
+result = analyze_conversation(conversation, window_size=6)
 print("Recent:", [m["content"] for m in result["recent_window"]])
 print("Counts:", result["role_counts"])
